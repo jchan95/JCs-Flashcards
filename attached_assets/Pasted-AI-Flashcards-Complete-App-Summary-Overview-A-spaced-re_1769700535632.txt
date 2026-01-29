@@ -1,0 +1,118 @@
+AI Flashcards - Complete App Summary
+Overview
+A spaced repetition flashcard app using the SM-2 (SuperMemo-2) algorithm for efficient memorization. Cards are uploaded via CSV and are read-only in the app.
+
+Data Structures
+Card Data (3 fields)
+{
+  id: string;           // Unique identifier
+  term: string;         // Front of card (question)
+  definition: string;   // Back of card (answer)
+  visualMetaphor: string; // Memory hint shown during review
+}
+Card Progress (SM-2 tracking)
+{
+  cardId: string;
+  easinessFactor: number;    // Starts at 2.5, min 1.3 (lower = harder)
+  interval: number;          // Days until next review
+  repetitions: number;       // Successful reviews in a row
+  lastReviewDate: string | null;
+  nextDueDate: string;       // When card is due
+}
+App Stats
+{
+  totalReviews: number;
+  correctReviews: number;    // Quality >= 3 counts as correct
+  currentStreak: number;     // Consecutive days studied
+  longestStreak: number;
+  lastReviewDate: string | null;
+}
+SM-2 Algorithm Implementation
+Quality Ratings (0-5)
+Rating	Label	Description
+0	Blackout	Complete blackout
+1	Wrong	Wrong, but recognized
+2	Familiar	Wrong, but familiar
+3	Hard	Correct with difficulty
+4	Good	Correct with hesitation
+5	Perfect	Perfect, instant recall
+Core Algorithm
+function calculateSM2(progress, quality) {
+  if (quality < 3) {
+    // Failed - reset to beginning
+    repetitions = 0;
+    interval = 1;
+  } else {
+    // Passed - update easiness factor
+    easinessFactor = EF + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+    easinessFactor = Math.max(easinessFactor, 1.3); // Minimum 1.3
+    
+    repetitions += 1;
+    
+    // Set interval
+    if (repetitions === 1) interval = 1;
+    else if (repetitions === 2) interval = 6;
+    else interval = Math.round(interval * easinessFactor);
+  }
+  
+  nextDueDate = today + interval days;
+}
+Card Ordering
+Due cards: Sorted by easiness factor (lowest/hardest first)
+New cards: Randomized each session
+Review cards shown before new cards
+Mastery Levels
+Level	Criteria
+New	Never reviewed
+Learning	< 3 successful reviews
+Review	3+ reviews, still practicing
+Mastered	EF > 2.5 AND interval >= 21 days
+Features
+Review Screen
+Shows term (front), tap to reveal definition (back)
+"Show Hint" button reveals visual metaphor
+6 rating buttons (0-5) after revealing answer
+Progress indicator: "X reviewed, Y remaining"
+Study More: After completing due cards, can review ALL cards again
+Stats Dashboard
+Total cards count
+Cards due today
+Total reviews (all-time)
+Current streak (days)
+Longest streak
+Mastery distribution pie chart (new/learning/review/mastered)
+Data Management
+Cards loaded from server (GET /api/cards)
+Progress stored in localStorage (browser) or AsyncStorage (mobile)
+Stats persist across sessions
+"Reset Progress" clears all learning data but keeps cards
+Backend API
+Endpoint	Method	Description
+/api/cards	GET	Fetch all flashcards
+/api/cards	POST	Upload cards (array)
+/api/cards	DELETE	Clear all cards
+Cards stored in data/cards.json on server.
+
+CSV Import Format
+Term,Definition,Visual Metaphor
+LLM,"Large Language Model—a neural network trained on massive text data","A savant who's read every book"
+Transformer,"The neural network architecture underlying modern LLMs","An orchestra conductor"
+Current Card Set
+52 AI/ML flashcards covering topics like:
+
+LLM, Transformer, Attention, Tokens
+Context Window, Temperature, Top-p
+Fine-tuning, RLHF, Chain of Thought
+RAG, Embeddings, Vector Database
+And more...
+Design
+Primary: Forest green (#2C5F4A)
+Accent: Warm amber (#E8A468)
+Background: Warm off-white (#F9F7F4)
+Success: Green for correct/streaks
+Error: Red for resets/failures
+Key Files to Port
+SM-2 logic: client/lib/sm2.ts - algorithm, CSV parsing, card ordering
+Storage logic: client/lib/storage.ts - progress/stats persistence (adapt for localStorage)
+Card data: data/cards.json - your 52 flashcards
+This gives you everything needed to rebuild as a PWA. The SM-2 algorithm and storage logic can be copied almost directly - just swap AsyncStorage for localStorage.

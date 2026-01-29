@@ -1,4 +1,22 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getGuestId, isGuestId } from "./guest";
+
+// Get headers including guest ID if needed
+function getHeaders(includeContentType: boolean = false): HeadersInit {
+  const headers: HeadersInit = {};
+  
+  // Add guest ID header if in guest mode
+  const guestId = localStorage.getItem("jc_flashcards_guest_id");
+  if (guestId) {
+    headers["X-Guest-Id"] = guestId;
+  }
+  
+  if (includeContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  return headers;
+}
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -14,7 +32,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: getHeaders(!!data),
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,8 +47,19 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Handle query keys - use first element as full URL if it starts with /
+    let url: string;
+    if (typeof queryKey[0] === "string" && queryKey[0].startsWith("/")) {
+      // If the first key element is already a full path, use it directly
+      url = queryKey[0];
+    } else {
+      // Otherwise join segments (for backwards compatibility)
+      url = queryKey.filter(k => k !== undefined && k !== null).join("/");
+    }
+    
+    const res = await fetch(url, {
       credentials: "include",
+      headers: getHeaders(),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

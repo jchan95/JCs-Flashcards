@@ -12,6 +12,8 @@ export const flashcardSets = pgTable("flashcard_sets", {
   name: text("name").notNull(),
   description: text("description"),
   cardCount: integer("card_count").default(0),
+  createdBy: varchar("created_by"), // userId of creator (null for system/seeded sets)
+  isPublic: boolean("is_public").default(false), // Available to all users
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -34,7 +36,7 @@ export const flashcards = pgTable("flashcards", {
   setId: varchar("set_id").notNull().references(() => flashcardSets.id, { onDelete: "cascade" }),
   term: text("term").notNull(),
   definition: text("definition").notNull(),
-  visualMetaphor: text("visual_metaphor"),
+  hint: text("hint"),
 });
 
 export const flashcardsRelations = relations(flashcards, ({ one }) => ({
@@ -101,7 +103,7 @@ export type AdminUser = typeof adminUsers.$inferSelect;
 export const csvCardSchema = z.object({
   term: z.string().min(1),
   definition: z.string().min(1),
-  visualMetaphor: z.string().optional(),
+  hint: z.string().optional(),
 });
 
 export type CSVCard = z.infer<typeof csvCardSchema>;

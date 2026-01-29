@@ -11,15 +11,31 @@ const rateSchema = z.object({
   quality: z.number().min(0).max(5),
 });
 
-// Schema for creating a set with cards
+// Schema for creating a set with cards (admin)
 const createSetSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
+  isPublic: z.boolean().optional(),
   cards: z.array(z.object({
     term: z.string().min(1),
     definition: z.string().min(1),
-    visualMetaphor: z.string().optional(),
+    hint: z.string().optional(),
   })),
+});
+
+// Schema for user CSV upload
+const userUploadSchema = z.object({
+  name: z.string().min(1),
+  cards: z.array(z.object({
+    term: z.string().min(1),
+    definition: z.string().min(1),
+    hint: z.string().optional(),
+  })),
+});
+
+// Schema for updating set visibility
+const updateSetPublicSchema = z.object({
+  isPublic: z.boolean(),
 });
 
 // Helper to get user ID from request (authenticated user or guest from cookie)
@@ -48,14 +64,79 @@ export async function registerRoutes(
   // PUBLIC ROUTES (no auth required)
   // ============================================
 
-  // Get all flashcard sets
+  // Get flashcard sets (public + user's own)
   app.get("/api/sets", async (req, res) => {
     try {
-      const sets = await storage.getAllSets();
+      const userId = getUserId(req);
+      const sets = await storage.getSetsForUser(userId);
       res.json(sets);
     } catch (error) {
       console.error("Error fetching sets:", error);
       res.status(500).json({ message: "Failed to fetch flashcard sets" });
+    }
+  });
+
+  // Upload flashcard set (any authenticated user)
+  app.post("/api/sets/upload", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const parsed = userUploadSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const { name, cards } = parsed.data;
+
+      // Create the set (user's own, not public by default)
+      const set = await storage.createSet({ 
+        name, 
+        description: null,
+        createdBy: userId,
+        isPublic: false,
+      });
+
+      // Create cards
+      const cardData = cards.map(card => ({
+        setId: set.id,
+        term: card.term,
+        definition: card.definition,
+        hint: card.hint || null,
+      }));
+
+      await storage.createCards(cardData);
+      await storage.updateSetCardCount(set.id, cards.length);
+
+      const updatedSet = await storage.getSet(set.id);
+      res.json(updatedSet);
+    } catch (error) {
+      console.error("Error uploading set:", error);
+      res.status(500).json({ message: "Failed to upload flashcard set" });
+    }
+  });
+
+  // Delete user's own set
+  app.delete("/api/sets/:setId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { setId } = req.params;
+      const canModify = await storage.canUserModifySet(userId, setId);
+      if (!canModify) {
+        return res.status(403).json({ message: "You don't have permission to delete this set" });
+      }
+
+      await storage.deleteSet(setId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting set:", error);
+      res.status(500).json({ message: "Failed to delete flashcard set" });
     }
   });
 
@@ -246,30 +327,61 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
       }
 
-      const { name, description, cards } = parsed.data;
+      const { name, description, cards, isPublic } = parsed.data;
 
       // Create the set
-      const set = await storage.createSet({ name, description: description || null });
+      const set = await storage.createSet({ 
+        name, 
+        description: description || null,
+        createdBy: userId,
+        isPublic: isPublic || false,
+      });
 
       // Create cards
       const cardData = cards.map(card => ({
         setId: set.id,
         term: card.term,
         definition: card.definition,
-        visualMetaphor: card.visualMetaphor || null,
+        hint: card.hint || null,
       }));
 
       await storage.createCards(cardData);
-
-      // Update card count
       await storage.updateSetCardCount(set.id, cards.length);
 
-      // Get updated set
       const updatedSet = await storage.getSet(set.id);
       res.json(updatedSet);
     } catch (error) {
       console.error("Error creating set:", error);
       res.status(500).json({ message: "Failed to create flashcard set" });
+    }
+  });
+
+  // Toggle set public/private (admin only)
+  app.patch("/api/admin/sets/:setId/public", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const isAdmin = await storage.isAdmin(userId);
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const parsed = updateSetPublicSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data" });
+      }
+
+      const { setId } = req.params;
+      const { isPublic } = parsed.data;
+
+      const updated = await storage.updateSetPublic(setId, isPublic);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating set visibility:", error);
+      res.status(500).json({ message: "Failed to update set visibility" });
     }
   });
 

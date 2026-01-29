@@ -95,9 +95,9 @@ export function getMasteryColor(level: MasteryLevel): string {
 }
 
 // Parse CSV content
-export function parseCSV(content: string): Array<{ term: string; definition: string; visualMetaphor?: string }> {
+export function parseCSV(content: string): Array<{ term: string; definition: string; hint?: string }> {
   const lines = content.trim().split('\n');
-  const cards: Array<{ term: string; definition: string; visualMetaphor?: string }> = [];
+  const cards: Array<{ term: string; definition: string; hint?: string }> = [];
   
   // Skip header if present
   const startIndex = lines[0]?.toLowerCase().includes('term') ? 1 : 0;
@@ -112,7 +112,7 @@ export function parseCSV(content: string): Array<{ term: string; definition: str
       cards.push({
         term: parts[0].trim(),
         definition: parts[1].trim(),
-        visualMetaphor: parts[2]?.trim() || undefined,
+        hint: parts[2]?.trim() || undefined,
       });
     }
   }

@@ -15,16 +15,19 @@ import {
   type AdminUser
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 
 // Storage interface for flashcard app
 export interface IStorage {
   // Flashcard Sets
   getAllSets(): Promise<FlashcardSet[]>;
+  getSetsForUser(userId: string | null): Promise<FlashcardSet[]>; // Public sets + user's own sets
   getSet(id: string): Promise<FlashcardSet | undefined>;
-  createSet(set: InsertFlashcardSet): Promise<FlashcardSet>;
+  createSet(set: InsertFlashcardSet & { createdBy?: string | null; isPublic?: boolean }): Promise<FlashcardSet>;
   deleteSet(id: string): Promise<void>;
   updateSetCardCount(setId: string, count: number): Promise<void>;
+  updateSetPublic(setId: string, isPublic: boolean): Promise<FlashcardSet>;
+  canUserModifySet(userId: string, setId: string): Promise<boolean>;
 
   // Flashcards
   getCardsBySet(setId: string): Promise<Flashcard[]>;
@@ -53,12 +56,28 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(flashcardSets).orderBy(flashcardSets.createdAt);
   }
 
+  async getSetsForUser(userId: string | null): Promise<FlashcardSet[]> {
+    // Return public sets + sets created by this user
+    if (userId) {
+      return db.select().from(flashcardSets)
+        .where(or(
+          eq(flashcardSets.isPublic, true),
+          eq(flashcardSets.createdBy, userId)
+        ))
+        .orderBy(flashcardSets.createdAt);
+    }
+    // No user - just public sets
+    return db.select().from(flashcardSets)
+      .where(eq(flashcardSets.isPublic, true))
+      .orderBy(flashcardSets.createdAt);
+  }
+
   async getSet(id: string): Promise<FlashcardSet | undefined> {
     const [set] = await db.select().from(flashcardSets).where(eq(flashcardSets.id, id));
     return set;
   }
 
-  async createSet(set: InsertFlashcardSet): Promise<FlashcardSet> {
+  async createSet(set: InsertFlashcardSet & { createdBy?: string | null; isPublic?: boolean }): Promise<FlashcardSet> {
     const [created] = await db.insert(flashcardSets).values(set).returning();
     return created;
   }
@@ -69,6 +88,23 @@ export class DatabaseStorage implements IStorage {
 
   async updateSetCardCount(setId: string, count: number): Promise<void> {
     await db.update(flashcardSets).set({ cardCount: count }).where(eq(flashcardSets.id, setId));
+  }
+
+  async updateSetPublic(setId: string, isPublic: boolean): Promise<FlashcardSet> {
+    const [updated] = await db.update(flashcardSets)
+      .set({ isPublic })
+      .where(eq(flashcardSets.id, setId))
+      .returning();
+    return updated;
+  }
+
+  async canUserModifySet(userId: string, setId: string): Promise<boolean> {
+    const set = await this.getSet(setId);
+    if (!set) return false;
+    // User can modify if they created it
+    if (set.createdBy === userId) return true;
+    // Admin can modify any set
+    return this.isAdmin(userId);
   }
 
   // Flashcards

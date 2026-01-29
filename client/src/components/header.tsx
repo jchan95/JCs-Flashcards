@@ -44,9 +44,14 @@ export function Header({ isAdmin, isGuest }: HeaderProps) {
           <ThemeToggle />
           
           {isGuest ? (
-            <Button asChild variant="outline" data-testid="button-sign-in">
-              <a href="/api/login">Sign In to Save Progress</a>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" data-testid="button-sign-in">
+                <a href="/api/login">Sign In</a>
+              </Button>
+              <Button variant="ghost" asChild data-testid="button-exit-guest">
+                <a href="/">Exit</a>
+              </Button>
+            </div>
           ) : isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -30,6 +30,16 @@ interface FlashcardReviewProps {
   isPending?: boolean;
 }
 
+// Fisher-Yates shuffle algorithm
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 export function FlashcardReview({ 
   setName, 
   cards, 
@@ -38,19 +48,35 @@ export function FlashcardReview({
   onComplete,
   isPending 
 }: FlashcardReviewProps) {
+  // Create a stable key from card IDs to detect when cards change
+  const cardsKey = cards.map(c => c.id).join(',');
+  
+  // Shuffle cards once when component mounts or cards change
+  const [shuffledCards, setShuffledCards] = useState<CardWithProgress[]>(() => shuffleArray(cards));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const [sessionComplete, setSessionComplete] = useState(false);
 
-  const currentCard = cards[currentIndex];
-  const totalCards = cards.length;
+  // Re-shuffle when cards actually change (new session, different cards)
+  useEffect(() => {
+    setShuffledCards(shuffleArray(cards));
+    setCurrentIndex(0);
+    setReviewed(new Set());
+    setSessionComplete(false);
+    setIsFlipped(false);
+    setShowHint(false);
+  }, [cardsKey]);
+
+  // Get current card from shuffled deck
+  const currentCardOrNull = shuffledCards.length > 0 ? shuffledCards[currentIndex] : null;
+  const totalCards = shuffledCards.length;
   const reviewedCount = reviewed.size;
   const progressPercent = totalCards > 0 ? (reviewedCount / totalCards) * 100 : 0;
 
-  const masteryLevel = currentCard 
-    ? getMasteryLevel(currentCard.repetitions, currentCard.easinessFactor, currentCard.interval)
+  const masteryLevel = currentCardOrNull 
+    ? getMasteryLevel(currentCardOrNull.repetitions, currentCardOrNull.easinessFactor, currentCardOrNull.interval)
     : "new";
 
   const handleFlip = useCallback(() => {
@@ -60,10 +86,10 @@ export function FlashcardReview({
   }, [isFlipped]);
 
   const handleRate = useCallback((quality: QualityRating) => {
-    if (!currentCard || isPending) return;
+    if (!currentCardOrNull || isPending) return;
     
-    onRate(currentCard.id, quality);
-    setReviewed((prev) => new Set(prev).add(currentCard.id));
+    onRate(currentCardOrNull.id, quality);
+    setReviewed((prev) => new Set(prev).add(currentCardOrNull.id));
     
     // Move to next card or complete
     if (currentIndex < totalCards - 1) {
@@ -73,7 +99,7 @@ export function FlashcardReview({
     } else {
       setSessionComplete(true);
     }
-  }, [currentCard, currentIndex, totalCards, onRate, isPending]);
+  }, [currentCardOrNull, currentIndex, totalCards, onRate, isPending]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -94,6 +120,16 @@ export function FlashcardReview({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFlipped, handleFlip, handleRate, sessionComplete]);
 
+  // Show loading if waiting for shuffle to sync with cards
+  if (cards.length > 0 && !currentCardOrNull) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12">
+        <p className="text-muted-foreground">Shuffling cards...</p>
+      </div>
+    );
+  }
+
+  // Show empty state if no cards at all
   if (cards.length === 0) {
     return (
       <div className="max-w-2xl mx-auto text-center py-12">
@@ -146,6 +182,9 @@ export function FlashcardReview({
       </div>
     );
   }
+
+  // After all early returns, we know currentCardOrNull is not null
+  const currentCard = currentCardOrNull!;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -216,24 +255,25 @@ export function FlashcardReview({
         </Card>
       </div>
 
-      {/* Hint button (shown before flip if card has metaphor) */}
+      {/* Hint button (shown before flip if card has hint) */}
       {!isFlipped && currentCard.hint && (
         <div className="text-center">
           <Button
-            variant="ghost"
-            size="sm"
+            variant="secondary"
+            size="lg"
             onClick={(e) => {
               e.stopPropagation();
               setShowHint(!showHint);
             }}
-            className="text-accent"
             data-testid="button-show-hint"
           >
-            <Lightbulb className="mr-2 h-4 w-4" />
-            {showHint ? "Hide Hint" : "Show Hint"}
+            <Lightbulb className="mr-2 h-5 w-5 text-accent" />
+            {showHint ? "Hide Hint" : "Need a Hint?"}
           </Button>
           {showHint && (
-            <p className="mt-2 text-sm text-accent/80">{currentCard.hint}</p>
+            <div className="mt-4 p-4 bg-accent/15 rounded-lg border border-accent/30 max-w-md mx-auto">
+              <p className="text-accent font-medium">{currentCard.hint}</p>
+            </div>
           )}
         </div>
       )}
@@ -275,12 +315,11 @@ export function FlashcardReview({
       {isFlipped && currentCard.hint && !showHint && (
         <div className="text-center">
           <Button
-            variant="ghost"
-            size="sm"
+            variant="secondary"
+            size="lg"
             onClick={() => setShowHint(true)}
-            className="text-accent"
           >
-            <Lightbulb className="mr-2 h-4 w-4" />
+            <Lightbulb className="mr-2 h-5 w-5 text-accent" />
             Show Memory Hint
           </Button>
         </div>

@@ -1,0 +1,53 @@
+Term,Definition,Hint
+LLM,Large Language Model—a neural network trained on massive text data to predict and generate human language,A savant who's read every book ever written but sometimes confidently misremembers details
+Transformer,The neural network architecture underlying modern LLMs; processes all tokens in a sequence simultaneously using attention rather than one at a time,"An orchestra conductor who can hear all instruments simultaneously, not one at a time"
+Attention,"The mechanism that computes relevance scores between all positions in a sequence, letting the model focus on the most important parts of the input when generating each output",A spotlight operator deciding which actors on stage deserve focus right now
+Token,"The basic unit an LLM processes—typically a word, subword, or character depending on the tokenizer (in English, roughly 4 characters ≈ 1 token)",Scrabble tiles—words broken into playable pieces
+Tokenization,"The process of splitting text into tokens that the model can process, using a learned vocabulary",Feeding a document through a paper shredder that cuts at specific intervals
+Context Window,"The maximum number of tokens a model can process at once, including both input and output combined",A whiteboard that gets erased when you run out of space—only so much fits
+Prompt,The text input provided to a model to elicit a response,Whispering instructions to a genie before making your wish
+System Prompt,"Persistent background instructions that define how the model should behave throughout a conversation, typically set by the developer",The secret rulebook a new employee gets on day one that customers never see
+Prompt Template,A reusable prompt structure with placeholder variables that get filled in programmatically at runtime,A Mad Libs page with blanks to fill in
+Zero-shot,"Asking a model to perform a task using only instructions, with no examples provided",Asking someone to cook Thai food when they've never seen a Thai recipe
+Few-shot,Providing examples in your prompt to demonstrate the desired input-output pattern before asking the model to perform the task,Showing someone 3 photos before saying 'take a picture like these'
+Chain-of-thought,"A prompting technique that instructs the model to reason through a problem step-by-step before giving a final answer, improving accuracy on complex tasks",A detective pinning clues on a board with string connecting them
+User Message,The human's input turn in a conversation,A note slipped under the door
+Assistant Message,The model's response turn in a conversation,The reply slipped back
+Chat History,"The sequence of previous messages in a conversation, passed to the model to maintain context",The stack of notes piling up on the floor
+Temperature,"A parameter controlling output randomness; lower values (near 0) produce more focused, deterministic responses; higher values (near 1+) produce more varied, unpredictable outputs",A dial from 'play it safe' to 'get freaky'
+Top-p,"Nucleus sampling—limits token selection to the smallest set of tokens whose cumulative probability exceeds p (e.g., 0.9), filtering out unlikely options while preserving diversity",A bouncer who only lets in guests from the VIP list until the club is 90% full
+Top-k,A sampling method that restricts the model to choosing only from the k highest-probability tokens at each step,"I'll only consider my top 5 options, ignore the rest'"
+Stop Sequence,"A specified string that signals the model to stop generating output when encountered (e.g., newlines, 'END', closing tags)",A safe word that ends the scene
+Determinism,The property where identical inputs produce identical outputs; achieved through temperature=0 and fixed random seeds,"A vending machine—same button, same snack, every time"
+Structured Output,"Model output constrained to a specific format like JSON, XML, or a schema, rather than free-form prose",A form with labeled boxes instead of a blank page
+Hallucination,When a model generates plausible-sounding but factually incorrect or fabricated information with apparent confidence,A confident tour guide pointing at a building that doesn't exist
+Grounding,"Techniques that anchor model responses to verified source material or real-time data, reducing hallucinations by requiring evidence",A journalist who shows you the receipt for every claim
+Accuracy,The proportion of model outputs that are correct or match expected results across a test set,Darts clustered on the bullseye vs scattered across the board
+Embedding,"A dense numerical vector that represents text (word, sentence, or document) in high-dimensional space, where semantic similarity corresponds to spatial proximity",Turning words into GPS coordinates so similar meanings are neighbors
+Vector Database,A database optimized for storing embeddings and performing fast similarity searches using distance metrics like cosine similarity,"A map where cities are organized by vibe, not geography—all beach towns cluster together"
+Chunking,"Splitting documents into smaller segments of appropriate size for embedding and retrieval, balancing context preservation with search granularity",Slicing a baguette into bite-sized pieces before serving
+Metadata,"Descriptive attributes attached to chunks or documents (source, date, author, tags) enabling filtering and improving retrieval relevance","The nutrition label on the bread bag—not the bread itself, but info about it"
+RAG,Retrieval-Augmented Generation—a technique that retrieves relevant documents from an external source and includes them in the prompt to provide the model with current or specialized knowledge,A librarian sprinting to fetch books before answering your question
+Retriever,The component in a RAG system responsible for searching the knowledge base and returning the most relevant documents for a given query,A golden retriever bounding off to find the right tennis ball from a pile
+Knowledge Base,"A searchable collection of documents, data, or information that a model can query to augment its responses",The entire library the librarian can access
+Agent,"An AI system that can autonomously plan multi-step tasks, decide which tools to use, execute actions, and iterate based on results","A personal assistant with a credit card, phone, and permission to make decisions"
+Tool Calling,"The model's ability to generate structured requests to invoke external functions (APIs, databases, calculators) and incorporate the results into its response",Batman reaching for the right gadget on his utility belt
+Workflow,"A predefined sequence of steps, decision points, or agent actions orchestrated to accomplish a complex task","An IKEA instruction manual—step 1, then step 2, then step 3"
+Inference,The process of passing input through a trained model to generate output; the production phase as opposed to training,"The moment the magician actually performs the trick (not practice, the real show)"
+Serving,"Deploying and hosting a model to handle inference requests, typically via an API endpoint, with considerations for scaling and reliability",The waiter carrying plates from kitchen to table
+Latency,"The time elapsed between sending a request and receiving the complete response, often measured as time-to-first-token (TTFT) or total response time",The pause after you order coffee before it appears in your hand
+Token Pricing,"API cost structure based on the number of tokens processed, typically charged separately for input tokens and output tokens at different rates",Paying per brick used to build your house
+Caching,"Storing computed results (prompt prefixes, embeddings, or full responses) to serve repeated or similar requests faster and at lower cost",Keeping an umbrella by the door so you don't have to search for one when it rains
+Fine-tuning,"Additional training performed on a pre-trained model using task-specific or domain-specific data to customize its behavior, style, or knowledge",A pianist who learned classical but then took jazz lessons
+RLHF,"Reinforcement Learning from Human Feedback—a training technique where humans rate model outputs and those preferences are used to optimize the model's behavior toward more helpful, harmless, and honest responses",A dog learning tricks through treats and 'good boy!'
+Benchmark,"A standardized test suite used to evaluate and compare model performance across specific capabilities (e.g., MMLU for knowledge, HumanEval for coding)",The SAT for AI—standardized tests everyone takes to compare scores
+Evals,"Evaluations—systematic tests measuring model performance on specific tasks, used to track improvements, catch regressions, and compare models",Pop quizzes to check if the student actually learned the material
+PII,"Personally Identifiable Information—data that can be used to identify an individual, such as names, email addresses, phone numbers, SSNs, or biometric data","The stuff in your wallet you'd panic about losing—ID, credit cards, SSN"
+Toxicity,"Harmful, offensive, abusive, or inappropriate content in model outputs, including hate speech, threats, or explicit material",Sewage leaking into the water supply
+Prompt Injection,An attack where malicious instructions are embedded in user input or external data sources to manipulate the model into ignoring its system prompt or performing unintended actions,A Trojan horse sneaking instructions past the gates
+Guardrails,"Safety mechanisms—rules, filters, or classifiers—that constrain model behavior to prevent harmful, off-topic, or policy-violating outputs",Bowling bumpers that keep the ball out of the gutter
+Multimodal,"Models capable of processing and/or generating multiple types of data (text, images, audio, video) within a single system","A person who can read, listen, and look at photos all at once"
+Image-to-Text,"Converting visual input into text output, including tasks like image captioning, OCR, visual question answering, and scene description",A museum docent describing a painting to a blind visitor
+Text-to-Image,"Generating images from natural language descriptions using models like DALL-E, Midjourney, or Stable Diffusion",A courtroom sketch artist drawing from witness descriptions
+Speech-to-Text (STT),"Converting spoken audio into written text, also called automatic speech recognition (ASR)",A court stenographer typing every word spoken
+Text-to-Speech (TTS),Synthesizing natural-sounding spoken audio from written text input,An audiobook narrator bringing text to life

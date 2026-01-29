@@ -14,6 +14,7 @@ import { getGuestId } from "@/lib/guest";
 import { addToOfflineQueue, getOfflineQueueForUser, removeFromOfflineQueue, isOnline } from "@/lib/offline-queue";
 import type { FlashcardSet, Flashcard, UserStats } from "@shared/schema";
 import { BookOpen, BarChart3 } from "lucide-react";
+import { UserUploadDialog } from "@/components/user-upload-dialog";
 
 interface CardWithProgress extends Flashcard {
   easinessFactor: number;
@@ -148,6 +149,27 @@ export default function Home() {
     }
   }, [syncOfflineQueue]);
 
+  // Upload set mutation (for authenticated users)
+  const uploadMutation = useMutation({
+    mutationFn: async (data: { name: string; cards: Array<{ term: string; definition: string; hint?: string }> }) => {
+      return apiRequest("POST", "/api/sets/upload", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sets"] });
+      toast({
+        title: "Success",
+        description: "Flashcard set created!",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload flashcard set. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Rate card mutation with offline support
   const rateMutation = useMutation({
     mutationFn: async ({ cardId, quality }: { cardId: string; quality: QualityRating }) => {
@@ -261,16 +283,24 @@ export default function Home() {
                   }
                 </p>
               </div>
-              <TabsList>
-                <TabsTrigger value="study" className="gap-2" data-testid="tab-study">
-                  <BookOpen className="h-4 w-4" />
-                  Study
-                </TabsTrigger>
-                <TabsTrigger value="stats" className="gap-2" data-testid="tab-stats">
-                  <BarChart3 className="h-4 w-4" />
-                  Stats
-                </TabsTrigger>
-              </TabsList>
+              <div className="flex items-center gap-2">
+                {isAuthenticated && (
+                  <UserUploadDialog
+                    onUpload={(name, cards) => uploadMutation.mutate({ name, cards })}
+                    isPending={uploadMutation.isPending}
+                  />
+                )}
+                <TabsList>
+                  <TabsTrigger value="study" className="gap-2" data-testid="tab-study">
+                    <BookOpen className="h-4 w-4" />
+                    Study
+                  </TabsTrigger>
+                  <TabsTrigger value="stats" className="gap-2" data-testid="tab-stats">
+                    <BarChart3 className="h-4 w-4" />
+                    Stats
+                  </TabsTrigger>
+                </TabsList>
+              </div>
             </div>
 
             <TabsContent value="study" className="mt-6">

@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { 
   Upload, 
   FileText, 
@@ -13,24 +15,27 @@ import {
   Trash2, 
   AlertCircle,
   CheckCircle2,
-  Layers
+  Layers,
+  Globe
 } from "lucide-react";
 import { parseCSV } from "@/lib/sm2";
 import type { FlashcardSet } from "@shared/schema";
 
 interface AdminUploadProps {
   sets: FlashcardSet[];
-  onUpload: (name: string, description: string, cards: Array<{ term: string; definition: string; visualMetaphor?: string }>) => void;
+  onUpload: (name: string, description: string, cards: Array<{ term: string; definition: string; hint?: string }>, isPublic: boolean) => void;
   onDeleteSet: (setId: string) => void;
+  onTogglePublic: (setId: string, isPublic: boolean) => void;
   isPending: boolean;
   isDeleting: boolean;
 }
 
-export function AdminUpload({ sets, onUpload, onDeleteSet, isPending, isDeleting }: AdminUploadProps) {
+export function AdminUpload({ sets, onUpload, onDeleteSet, onTogglePublic, isPending, isDeleting }: AdminUploadProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [csvContent, setCsvContent] = useState("");
-  const [parsedCards, setParsedCards] = useState<Array<{ term: string; definition: string; visualMetaphor?: string }>>([]);
+  const [parsedCards, setParsedCards] = useState<Array<{ term: string; definition: string; hint?: string }>>([]);
   const [parseError, setParseError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,10 +80,11 @@ export function AdminUpload({ sets, onUpload, onDeleteSet, isPending, isDeleting
 
   const handleSubmit = () => {
     if (!name.trim() || parsedCards.length === 0) return;
-    onUpload(name.trim(), description.trim(), parsedCards);
+    onUpload(name.trim(), description.trim(), parsedCards, isPublic);
     // Reset form
     setName("");
     setDescription("");
+    setIsPublic(false);
     setCsvContent("");
     setParsedCards([]);
     if (fileInputRef.current) {
@@ -98,7 +104,7 @@ export function AdminUpload({ sets, onUpload, onDeleteSet, isPending, isDeleting
             Upload New Flashcard Set
           </CardTitle>
           <CardDescription>
-            Upload a CSV file with Term, Definition, and optional Visual Metaphor columns.
+            Upload a CSV file with Term, Definition, and optional Hint columns.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -148,7 +154,7 @@ export function AdminUpload({ sets, onUpload, onDeleteSet, isPending, isDeleting
               <Label htmlFor="csv-content">Or paste CSV content directly</Label>
               <Textarea
                 id="csv-content"
-                placeholder="Term,Definition,Visual Metaphor
+                placeholder="Term,Definition,Hint
 LLM,Large Language Model—a neural network trained on massive text data,A savant who's read every book
 Transformer,The neural network architecture underlying modern LLMs,An orchestra conductor"
                 value={csvContent}
@@ -156,6 +162,19 @@ Transformer,The neural network architecture underlying modern LLMs,An orchestra 
                 className="min-h-[150px] font-mono text-sm"
                 data-testid="textarea-csv-content"
               />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="is-public"
+                checked={isPublic}
+                onCheckedChange={(checked) => setIsPublic(checked === true)}
+                data-testid="checkbox-is-public"
+              />
+              <Label htmlFor="is-public" className="flex items-center gap-2 cursor-pointer">
+                <Globe className="h-4 w-4" />
+                Make available to everyone
+              </Label>
             </div>
 
             {/* Parse Status */}
@@ -236,6 +255,12 @@ Transformer,The neural network architecture underlying modern LLMs,An orchestra 
                       <Badge variant="secondary" className="shrink-0">
                         {set.cardCount} cards
                       </Badge>
+                      {set.isPublic && (
+                        <Badge variant="outline" className="shrink-0 gap-1">
+                          <Globe className="h-3 w-3" />
+                          Public
+                        </Badge>
+                      )}
                     </div>
                     {set.description && (
                       <p className="text-sm text-muted-foreground truncate mt-0.5">
@@ -243,16 +268,26 @@ Transformer,The neural network architecture underlying modern LLMs,An orchestra 
                       </p>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onDeleteSet(set.id)}
-                    disabled={isDeleting}
-                    data-testid={`button-delete-set-${set.id}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={set.isPublic ?? false}
+                        onCheckedChange={(checked) => onTogglePublic(set.id, checked)}
+                        data-testid={`switch-public-${set.id}`}
+                      />
+                      <span className="text-xs text-muted-foreground">Public</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => onDeleteSet(set.id)}
+                      disabled={isDeleting}
+                      data-testid={`button-delete-set-${set.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

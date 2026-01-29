@@ -202,11 +202,11 @@ export function FlashcardReview({
                 <p className="text-lg md:text-xl" data-testid="text-definition">
                   {currentCard.definition}
                 </p>
-                {showHint && currentCard.visualMetaphor && (
+                {showHint && currentCard.hint && (
                   <div className="mt-4 p-3 bg-accent/10 rounded-md border border-accent/20">
                     <p className="text-sm text-accent flex items-center gap-2">
                       <Lightbulb className="h-4 w-4 shrink-0" />
-                      <span>{currentCard.visualMetaphor}</span>
+                      <span>{currentCard.hint}</span>
                     </p>
                   </div>
                 )}
@@ -217,7 +217,7 @@ export function FlashcardReview({
       </div>
 
       {/* Hint button (shown before flip if card has metaphor) */}
-      {!isFlipped && currentCard.visualMetaphor && (
+      {!isFlipped && currentCard.hint && (
         <div className="text-center">
           <Button
             variant="ghost"
@@ -233,7 +233,7 @@ export function FlashcardReview({
             {showHint ? "Hide Hint" : "Show Hint"}
           </Button>
           {showHint && (
-            <p className="mt-2 text-sm text-accent/80">{currentCard.visualMetaphor}</p>
+            <p className="mt-2 text-sm text-accent/80">{currentCard.hint}</p>
           )}
         </div>
       )}
@@ -272,7 +272,7 @@ export function FlashcardReview({
       )}
 
       {/* Hint toggle after flip */}
-      {isFlipped && currentCard.visualMetaphor && !showHint && (
+      {isFlipped && currentCard.hint && !showHint && (
         <div className="text-center">
           <Button
             variant="ghost"

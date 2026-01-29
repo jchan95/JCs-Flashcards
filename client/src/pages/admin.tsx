@@ -33,7 +33,8 @@ export default function Admin() {
     mutationFn: async (data: { 
       name: string; 
       description: string; 
-      cards: Array<{ term: string; definition: string; visualMetaphor?: string }> 
+      cards: Array<{ term: string; definition: string; hint?: string }>; 
+      isPublic: boolean;
     }) => {
       return apiRequest("POST", "/api/admin/sets", data);
     },
@@ -48,6 +49,27 @@ export default function Admin() {
       toast({
         title: "Error",
         description: "Failed to upload flashcard set. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle public mutation
+  const togglePublicMutation = useMutation({
+    mutationFn: async ({ setId, isPublic }: { setId: string; isPublic: boolean }) => {
+      return apiRequest("PATCH", `/api/admin/sets/${setId}/public`, { isPublic });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sets"] });
+      toast({
+        title: "Updated",
+        description: "Set visibility updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update visibility. Please try again.",
         variant: "destructive",
       });
     },
@@ -129,10 +151,11 @@ export default function Admin() {
 
           <AdminUpload
             sets={sets}
-            onUpload={(name, description, cards) => 
-              uploadMutation.mutate({ name, description, cards })
+            onUpload={(name, description, cards, isPublic) => 
+              uploadMutation.mutate({ name, description, cards, isPublic })
             }
             onDeleteSet={(setId) => deleteMutation.mutate(setId)}
+            onTogglePublic={(setId, isPublic) => togglePublicMutation.mutate({ setId, isPublic })}
             isPending={uploadMutation.isPending}
             isDeleting={deleteMutation.isPending}
           />

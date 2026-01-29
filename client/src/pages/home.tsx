@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Header } from "@/components/header";
@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { getMasteryLevel, type QualityRating } from "@/lib/sm2";
+import { getMasteryLevel, calculateSM2, type QualityRating } from "@/lib/sm2";
 import { getGuestId } from "@/lib/guest";
+import { addToOfflineQueue, getOfflineQueueForUser, removeFromOfflineQueue, isOnline } from "@/lib/offline-queue";
 import type { FlashcardSet, Flashcard, UserStats } from "@shared/schema";
 import { BookOpen, BarChart3 } from "lucide-react";
 
@@ -45,10 +46,26 @@ export default function Home() {
   });
 
   // Fetch cards for selected set with progress - use correct URL format
-  const { data: cardsWithProgress = [], isLoading: cardsLoading, refetch: refetchCards } = useQuery<CardWithProgress[]>({
+  const { data: serverCards = [], isLoading: cardsLoading, refetch: refetchCards } = useQuery<CardWithProgress[]>({
     queryKey: [`/api/sets/${selectedSetId}/cards/${userId}`],
     enabled: !!selectedSetId && !!userId,
   });
+
+  // Local state for offline-capable card updates
+  const [localCardUpdates, setLocalCardUpdates] = useState<Record<string, Partial<CardWithProgress>>>({});
+
+  // Merge server cards with local updates for offline support
+  const cardsWithProgress = useMemo(() => {
+    return serverCards.map(card => ({
+      ...card,
+      ...localCardUpdates[card.id],
+    }));
+  }, [serverCards, localCardUpdates]);
+
+  // Clear local updates when switching sets or when server data refreshes
+  useEffect(() => {
+    setLocalCardUpdates({});
+  }, [selectedSetId]);
 
   // Fetch user stats (only for authenticated users) - use correct URL format
   const { data: stats, isLoading: statsLoading } = useQuery<UserStats>({
@@ -62,24 +79,120 @@ export default function Home() {
     enabled: isAuthenticated,
   });
 
-  // Rate card mutation
+  // Apply optimistic update locally using SM-2 algorithm
+  const applyLocalUpdate = useCallback((cardId: string, quality: QualityRating) => {
+    const card = cardsWithProgress.find(c => c.id === cardId);
+    if (!card) return;
+
+    const result = calculateSM2(
+      card.easinessFactor,
+      card.interval,
+      card.repetitions,
+      quality
+    );
+
+    setLocalCardUpdates(prev => ({
+      ...prev,
+      [cardId]: {
+        easinessFactor: result.easinessFactor,
+        interval: result.interval,
+        repetitions: result.repetitions,
+        nextDueDate: result.nextDueDate.toISOString(),
+      },
+    }));
+  }, [cardsWithProgress]);
+
+  // Sync offline queue when coming back online
+  const syncOfflineQueue = useCallback(async () => {
+    if (!userId) return;
+    
+    const queue = getOfflineQueueForUser(userId);
+    if (queue.length === 0) return;
+
+    let syncedAny = false;
+    for (const item of queue) {
+      try {
+        await apiRequest("POST", "/api/progress/rate", {
+          cardId: item.cardId,
+          quality: item.quality,
+        });
+        removeFromOfflineQueue(item.cardId, userId);
+        syncedAny = true;
+      } catch {
+        // Still offline or error - keep in queue and stop trying
+        break;
+      }
+    }
+
+    // Refresh data after syncing and clear local updates
+    if (syncedAny) {
+      queryClient.invalidateQueries({ queryKey: [`/api/sets/${selectedSetId}/cards/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stats/${userId}`] });
+      setLocalCardUpdates({});
+    }
+  }, [selectedSetId, userId]);
+
+  // Listen for online event to sync queue
+  useEffect(() => {
+    const handleOnline = () => {
+      syncOfflineQueue();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [syncOfflineQueue]);
+
+  // Try to sync on mount
+  useEffect(() => {
+    if (isOnline()) {
+      syncOfflineQueue();
+    }
+  }, [syncOfflineQueue]);
+
+  // Rate card mutation with offline support
   const rateMutation = useMutation({
     mutationFn: async ({ cardId, quality }: { cardId: string; quality: QualityRating }) => {
-      return apiRequest("POST", "/api/progress/rate", { 
+      // Always apply local update first (optimistic)
+      applyLocalUpdate(cardId, quality);
+
+      if (!userId) {
+        return { offline: true };
+      }
+
+      if (!isOnline()) {
+        // Queue for later sync
+        addToOfflineQueue(cardId, quality, userId);
+        return { offline: true, cardId };
+      }
+
+      // For online requests, just send directly
+      // The server should handle any duplicate ratings gracefully (last one wins)
+      const response = await apiRequest("POST", "/api/progress/rate", { 
         cardId, 
         quality,
       });
+      return { success: true, cardId, response };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result && 'offline' in result) {
+        // Don't show error for offline mode - progress is saved locally
+        return;
+      }
+      if (result && 'success' in result && result.cardId) {
+        // Clear the local update for this card since server has the truth now
+        setLocalCardUpdates(prev => {
+          const updated = { ...prev };
+          delete updated[result.cardId];
+          return updated;
+        });
+      }
       queryClient.invalidateQueries({ queryKey: [`/api/sets/${selectedSetId}/cards/${userId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/stats/${userId}`] });
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to save your progress. Please try again.",
-        variant: "destructive",
-      });
+    onError: (_, variables) => {
+      if (!userId) return;
+      // If the request failed (e.g., went offline mid-request), queue it for later
+      addToOfflineQueue(variables.cardId, variables.quality, userId);
+      // Local update already applied, so user can continue seamlessly
     },
   });
 

@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Link } from "wouter";
 
 interface HeaderProps {
   isAdmin?: boolean;
@@ -31,14 +30,14 @@ export function Header({ isAdmin, isGuest }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2 hover-elevate rounded-md px-2 py-1 -ml-2">
+        <a href="/" className="flex items-center gap-2 hover-elevate rounded-md px-2 py-1 -ml-2">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
             <Layers className="h-5 w-5 text-primary-foreground" />
           </div>
           <span className="font-serif font-bold text-xl" data-testid="text-app-title">
             JC's Flashcards
           </span>
-        </Link>
+        </a>
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -76,10 +75,10 @@ export function Header({ isAdmin, isGuest }: HeaderProps) {
                 {isAdmin && (
                   <>
                     <DropdownMenuItem asChild>
-                      <Link href="/admin" className="cursor-pointer" data-testid="link-admin">
+                      <a href="/admin" className="cursor-pointer" data-testid="link-admin">
                         <Settings className="mr-2 h-4 w-4" />
                         Admin Panel
-                      </Link>
+                      </a>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
